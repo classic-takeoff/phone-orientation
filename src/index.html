@@ -40,6 +40,12 @@
       <div class="range-hints"><span>更灵敏</span><span>更稳定</span></div>
       <p class="small-note">快速转动自动提高响应；静止时降低更新。</p>
       <button id="demo" class="demo">没有传感器？体验演示 <span>→</span></button>
+      <div class="separator"></div>
+      <div class="section-number">04 <span>实际位置</span><span class="unit">GPS</span></div>
+      <p class="message location-message" id="location-message">点击启用定位后，页面会在手机上读取 GPS。位置只在本机处理。</p>
+      <div class="button-row"><button id="locate">启用定位</button><button id="set-origin" disabled>设为原点</button></div>
+      <div class="location-readout"><div><span>相对东 / 北</span><output id="relative-position">— / —</output><small>m</small></div><div><span>距原点</span><output id="relative-distance">—</output><small>m</small></div><div><span>定位精度</span><output id="location-accuracy">—</output><small>m</small></div></div>
+      <p class="small-note">GPS 在室外通常为米级；室内或高楼附近可能漂移。小于 1 m 的变化会被忽略。</p>
     </aside>
   </section>
   <section class="telemetry" aria-label="性能状态"><div><span>传感器采样</span><output id="sensor-hz">—</output><small>Hz</small></div><div><span>模型更新</span><output id="render-hz">—</output><small>次/秒</small></div><div><span>距最近采样</span><output id="sample-age">—</output><small>ms</small></div><p><i></i> 自适应防抖<br><span>按需绘制 · 后台休眠</span></p></section>
