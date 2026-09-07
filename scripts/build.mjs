@@ -1,0 +1,10 @@
+import {readFile,mkdir,writeFile} from 'node:fs/promises';
+const root=new URL('../',import.meta.url);
+const read=path=>readFile(new URL(path,root),'utf8');
+const [html,css,math,app]=await Promise.all(['src/index.html','src/style.css','src/orientation.mjs','src/app.mjs'].map(read));
+const script=math.replace(/^export /gm,'')+'\n'+app.replace(/^import .*;\n/,'');
+const output=html.replace('/* STYLES */',()=>css).replace('/* SCRIPT */',()=>script);
+await mkdir(new URL('docs/',root),{recursive:true});
+await writeFile(new URL('docs/index.html',root),output);
+await writeFile(new URL('docs/.nojekyll',root),'');
+console.log(`Built docs/index.html (${Buffer.byteLength(output)} bytes), no external dependencies.`);
