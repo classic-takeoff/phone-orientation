@@ -1,0 +1,14 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {identity,axis,multiply,inverse,fromSensor,distance,slerp,PoseFilter,cssMatrix} from '../src/orientation.mjs';
+test('arbitrary grip calibrates to identity including landscape',()=>{for(const s of [0,90,180,270]){const q=fromSensor(132,76,-24,s);assert.ok(distance(multiply(inverse(q),q),identity())<.00001);}});
+test('W3C order: beta then gamma is not swapped',()=>{const q=fromSensor(90,90,0);assert.ok(distance(q,multiply(axis(0,0,1,90),axis(1,0,0,90)))<.00001);});
+test('359 to 1 degree follows shortest arc without full spin',()=>{const a=fromSensor(359,0,0),b=fromSensor(1,0,0);assert.ok(Math.abs(distance(a,b)-2)<1e-6);assert.ok(distance(slerp(a,b,.5),identity())<1e-5);});
+test('quaternion sign change cannot trigger rotation',()=>{const a=fromSensor(130,76,12);assert.ok(distance(a,a.map(v=>-v))<1e-5);});
+test('deadband suppresses subthreshold jitter for 5 seconds',()=>{const f=new PoseFilter(.65);for(let i=1;i<=300;i++){f.sample(axis(1,0,0,.2*Math.sin(i)),i*1000/60);f.step(1/60);}assert.ok(distance(f.value,identity())<1e-5);});
+test('slow motion accumulates rather than getting stuck',()=>{const f=new PoseFilter(.65);for(let i=1;i<=120;i++){f.sample(axis(1,0,0,i*.02),i*1000/60);f.step(1/60);}assert.ok(distance(f.value,identity())>1.8);});
+test('rapid 90 degree step exceeds 95 percent in 2 frames',()=>{const f=new PoseFilter();const target=axis(0,1,0,90);f.sample(target,1000/60);f.step(1/60);f.step(1/60);assert.ok(distance(f.value,target)<4.5);});
+test('frame-rate independent smoothing stays bounded',()=>{for(const fps of [30,60,120]){const f=new PoseFilter();for(let i=1;i<=fps;i++){f.sample(axis(0,1,0,30),i*1000/fps);f.step(1/fps);assert.ok(Math.abs(Math.hypot(...f.value)-1)<1e-6);}assert.ok(distance(f.value,axis(0,1,0,30))<.02);}});
+test('CSS conversion turns device top toward viewer for positive pitch',()=>{const m=cssMatrix(axis(1,0,0,90)).slice(9,-1).split(',').map(Number);assert.ok(-m[6]>.999);});
+test('CSS positive z rotation sends device top left, not mirrored',()=>{const m=cssMatrix(axis(0,0,1,90)).slice(9,-1).split(',').map(Number);assert.ok(-m[4]<-.999);});
+test('landscape compensation cancels natural-frame z rotation',()=>{assert.ok(distance(fromSensor(90,0,0,90),identity())<1e-5);});
