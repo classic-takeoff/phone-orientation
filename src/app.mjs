@@ -1,8 +1,9 @@
 import { identity, multiply, inverse, fromSensor, distance, cssMatrix, angles, PoseFilter } from './orientation.mjs';
 const $=id=>document.getElementById(id);
-const ui=Object.fromEntries(['phone','status','message','connect','pause','calibrate','demo','stage','pitch','yaw','roll','sensor-hz','render-hz','sample-age','motion-label','source-label','view-label','deadband','deadband-value'].map(id=>[id,$(id)]));
+const ui=Object.fromEntries(['phone','status','message','connect','pause','calibrate','demo','stage','pitch','yaw','roll','sensor-hz','render-hz','sample-age','motion-label','source-label','view-label','deadband','deadband-value','locate','set-origin','location-message','relative-position','relative-distance','location-accuracy'].map(id=>[id,$(id)]));
 const filter=new PoseFilter();
 let mode='idle', paused=false, base=null, latest=null, lastEvent=0, started=0, raf=0, frameTime=0, statsTime=0, samples=0, draws=0, lastReadout=0, demoStart=0, generation=0;
+let locationWatch=null, locationLatest=null, locationOrigin=null, locationDisplayed=null;
 let currentScreen=screenAngle();
 function screenAngle(){return Number(window.screen?.orientation?.angle ?? window.orientation ?? 0);}
 function status(label,state){ui.status.textContent=label;ui.status.dataset.state=state;}
@@ -10,6 +11,16 @@ function message(text){ui.message.textContent=text;}
 function render(){ui.phone.style.transform=cssMatrix(filter.value);draws++;}
 function readouts(){const values=angles(filter.value); ['pitch','yaw','roll'].forEach((key,i)=>{const n=Math.round(values[i]*10)/10; const s=(Math.abs(n)<.05?'0.0':n.toFixed(1))+'°'; if(ui[key].textContent!==s)ui[key].textContent=s;});}
 function screenLayout(){currentScreen=screenAngle();document.body.classList.toggle('landscape',Math.abs(currentScreen)%180===90);ui['view-label'].textContent=`握持视角 · ${Math.abs(currentScreen)%180===90?'横屏':'竖屏'}`;}
+function metersBetween(a,b){const lat=(a.latitude+b.latitude)/2*Math.PI/180;return {east:(b.longitude-a.longitude)*111320*Math.cos(lat),north:(b.latitude-a.latitude)*110540};}
+function updateLocation(position){
+  const c=position.coords; locationLatest={latitude:c.latitude,longitude:c.longitude,accuracy:c.accuracy};
+  ui['location-accuracy'].textContent=Math.round(c.accuracy*10)/10;
+  if(!locationOrigin){ui['location-message'].textContent='已取得当前位置。点击“设为原点”，再移动手机查看相对坐标。';return;}
+  const delta=metersBetween(locationOrigin,locationLatest), distanceNow=Math.hypot(delta.east,delta.north);
+  if(!locationDisplayed||distanceNow>=1){locationDisplayed=delta;ui['relative-position'].textContent=`${delta.east>=0?'+':''}${delta.east.toFixed(1)} / ${delta.north>=0?'+':''}${delta.north.toFixed(1)}`;ui['relative-distance'].textContent=distanceNow.toFixed(1);}
+  ui['location-message'].textContent=`相对原点 · ${locationOrigin.latitude.toFixed(5)}, ${locationOrigin.longitude.toFixed(5)}`;
+}
+function locationError(error){const text=error.code===1?'定位权限未允许，请在浏览器网站设置中允许位置访问。':error.code===2?'暂时无法取得位置，请移到室外或检查系统定位开关。':'定位请求超时，请继续等待或重新启用。';ui['location-message'].textContent=text;ui['locate'].textContent='重试定位';}
 function resetPose(q,time=performance.now()){base=inverse(q);filter.reset(identity(),time);render();readouts();}
 function onSensor(event){
   if(mode!=='sensor'||paused||document.hidden)return;
@@ -59,6 +70,20 @@ ui.connect.addEventListener('click',async()=>{
     status('等待传感器','idle');message('权限已就绪，等待有效方向数据。请轻轻转动手机。');
   }catch(error){if(attempt!==generation)return;status('无法连接','error');message(error.message==='permission-denied'?'运动与方向权限未获允许。请在浏览器网站设置中允许，或重新打开页面后连接。':'浏览器未能提供运动权限。请在 Safari / Chrome 中通过 HTTPS 打开，并检查网站传感器权限。');}
   finally{ui.connect.disabled=false;}
+});
+ui.locate.addEventListener('click',()=>{
+  if(!window.isSecureContext){ui['location-message'].textContent='请通过 HTTPS 页面启用定位。';return;}
+  if(!navigator.geolocation){ui['location-message'].textContent='当前浏览器没有提供 GPS 定位接口。';return;}
+  if(locationWatch!==null){navigator.geolocation.clearWatch(locationWatch);locationWatch=null;ui.locate.textContent='启用定位';ui['location-message'].textContent='已停止定位读取。';return;}
+  ui.locate.disabled=true;ui['location-message'].textContent='正在请求位置权限…';
+  locationWatch=navigator.geolocation.watchPosition(updateLocation,locationError,{enableHighAccuracy:true,maximumAge:1000,timeout:10000});
+  ui.locate.disabled=false;ui.locate.textContent='停止定位';ui.setOrigin.disabled=false;
+});
+ui['set-origin'].addEventListener('click',()=>{
+  if(!locationLatest){ui['location-message'].textContent='还没有有效位置，请先启用定位并等待 GPS 读数。';return;}
+  locationOrigin={latitude:locationLatest.latitude,longitude:locationLatest.longitude};locationDisplayed={east:0,north:0};
+  ui['relative-position'].textContent='+0.0 / +0.0';ui['relative-distance'].textContent='0.0';
+  ui['location-message'].textContent=`原点已设定 · ${locationOrigin.latitude.toFixed(5)}, ${locationOrigin.longitude.toFixed(5)}`;
 });
 ui.demo.addEventListener('click',()=>{const wasDemo=mode==='demo';stop();ui.connect.disabled=false;if(wasDemo){status('尚未连接','idle');message('演示已结束。用手机连接传感器即可查看真实姿态。');}else{mode='demo';demoStart=performance.now();filter.reset();render();status('演示模式','demo');message('正在播放模拟旋转，不代表手机传感器读数。点击连接可切换到真实数据。');schedule();}controls();});
 ui.calibrate.addEventListener('click',()=>{
