@@ -2,33 +2,29 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#101715"><meta name="description" content="实时查看手机旋转姿态。自适应防抖、轻量 3D、握持视角校准，数据仅在本机处理。">
-<title>掌中姿态 · 手机旋转可视化</title>
+<meta name="theme-color" content="#101715"><meta name="description" content="用手机姿态实时操控三维光剑。自适应防抖、轻量 3D、握持视角校准，数据仅在本机处理。">
+<title>掌中光剑 · 姿态可视化</title>
 <style>/* STYLES */</style>
 </head>
 <body>
 <main>
-  <header><a class="brand" href="./" aria-label="掌中姿态首页"><span class="brand-icon">↗</span> 掌中姿态<span class="edition">MOTION / 01</span></a><span class="local">本机处理 <i></i></span></header>
-  <div class="intro"><div><p class="eyebrow">DEVICE ORIENTATION</p><h1>转动手机，看见姿态。</h1></div><p>自然握持，点击连接。<br>屏幕里的手机，跟随你的每一次转动。</p></div>
+  <header><a class="brand" href="./" aria-label="掌中光剑首页"><span class="brand-icon">↗</span> 掌中光剑<span class="edition">MOTION / 01</span></a><span class="local">本机处理 <i></i></span></header>
+  <div class="intro"><div><p class="eyebrow">DEVICE ORIENTATION</p><h1>转动手机，挥动光剑。</h1></div><p>自然握持，点击连接。<br>光剑跟随你的每一次转动。</p></div>
   <section class="workspace" aria-label="手机姿态控制台">
     <div class="viewer">
       <div class="viewer-top"><span class="status" id="status" data-state="idle">尚未连接</span><span id="view-label">握持视角 · 竖屏</span></div>
-      <div class="stage" id="stage" role="img" aria-label="三维手机模型，当前为初始正面姿态">
+      <div class="stage" id="stage" role="img" aria-label="三维光剑模型，通过手机转动控制剑身方向">
         <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="crosshair"></div>
         <span class="direction top-direction">上 / TOP</span><span class="direction left-direction">L</span><span class="direction right-direction">R</span>
-        <div class="phone-anchor"><div class="phone" id="phone">
-          <div class="face front"><div class="screen"><span class="speaker"></span><span class="screen-label">掌中姿态</span><div class="screen-cross"><span>↑</span><b>正面</b><small>FRONT</small></div><span class="home-bar"></span></div></div>
-          <div class="face back"><div class="cameras"><i></i><i></i></div><span>背面<small>BACK</small></span></div>
-          <div class="edge edge-left"></div><div class="edge edge-right"></div><div class="edge edge-top"></div><div class="edge edge-bottom"></div>
-        </div></div>
+        <div class="saber-anchor"><div class="saber" id="saber" aria-hidden="true"><div class="blade"><i class="blade-face" style="--angle:0deg"></i><i class="blade-face" style="--angle:45deg"></i><i class="blade-face" style="--angle:90deg"></i><i class="blade-face" style="--angle:135deg"></i><i class="blade-face" style="--angle:180deg"></i><i class="blade-face" style="--angle:225deg"></i><i class="blade-face" style="--angle:270deg"></i><i class="blade-face" style="--angle:315deg"></i></div><div class="hilt"><i class="hilt-face" style="--angle:0deg"></i><i class="hilt-face" style="--angle:45deg"></i><i class="hilt-face" style="--angle:90deg"></i><i class="hilt-face" style="--angle:135deg"></i><i class="hilt-face" style="--angle:180deg"></i><i class="hilt-face" style="--angle:225deg"></i><i class="hilt-face" style="--angle:270deg"></i><i class="hilt-face" style="--angle:315deg"></i><i class="hilt-button"></i><i class="emitter"></i><i class="pommel"></i></div></div></div>
       </div>
       <div class="viewer-bottom"><span><i class="legend-dot"></i> <span id="source-label">等待手机传感器</span></span><span id="motion-label">准备就绪</span></div>
     </div>
     <aside class="controls">
       <div class="section-number">01 <span>连接与视角</span></div>
-      <p id="message" class="message" role="status" aria-live="polite">用手机浏览器打开，连接后允许访问运动与方向。当前握持姿势将自动设为正面。</p>
+      <p id="message" class="message" role="status" aria-live="polite">用手机浏览器打开，连接后允许访问运动与方向。当前握持姿势将自动校准方向。</p>
       <button id="connect" class="primary">连接手机传感器 <span>↗</span></button>
-      <div class="button-row"><button id="calibrate" disabled>◎ 设为正面</button><button id="pause" disabled>Ⅱ 暂停</button></div>
+      <div class="button-row"><button id="calibrate" disabled>◎ 校准方向</button><button id="pause" disabled>Ⅱ 暂停</button></div>
       <div class="separator"></div>
       <div class="section-number">02 <span>实时姿态</span><span class="unit">°</span></div>
       <div class="readings"><div><span><i class="axis x"></i>前后倾斜</span><output id="pitch">—</output></div><div><span><i class="axis y"></i>左右转向</span><output id="yaw">—</output></div><div><span><i class="axis z"></i>屏内旋转</span><output id="roll">—</output></div></div>
@@ -40,17 +36,11 @@
       <div class="range-hints"><span>更灵敏</span><span>更稳定</span></div>
       <p class="small-note">快速转动自动提高响应；静止时降低更新。</p>
       <button id="demo" class="demo">没有传感器？体验演示 <span>→</span></button>
-      <div class="separator"></div>
-      <div class="section-number">04 <span>实际位置</span><span class="unit">GPS</span></div>
-      <p class="message location-message" id="location-message">点击启用定位后，页面会在手机上读取 GPS。位置只在本机处理。</p>
-      <div class="button-row"><button id="locate">启用定位</button><button id="set-origin" disabled>设为原点</button></div>
-      <div class="location-readout"><div><span>相对东 / 北</span><output id="relative-position">— / —</output><small>m</small></div><div><span>距原点</span><output id="relative-distance">—</output><small>m</small></div><div><span>定位精度</span><output id="location-accuracy">—</output><small>m</small></div></div>
-      <p class="small-note">GPS 在室外通常为米级；室内或高楼附近可能漂移。小于 1 m 的变化会被忽略。</p>
     </aside>
   </section>
   <section class="telemetry" aria-label="性能状态"><div><span>传感器采样</span><output id="sensor-hz">—</output><small>Hz</small></div><div><span>模型更新</span><output id="render-hz">—</output><small>次/秒</small></div><div><span>距最近采样</span><output id="sample-age">—</output><small>ms</small></div><p><i></i> 自适应防抖<br><span>按需绘制 · 后台休眠</span></p></section>
-  <details><summary>使用提示与兼容性 <span>＋</span></summary><div class="tips"><p>iPhone / iPad：建议使用 Safari，点击连接并允许“运动与方向”。Android：使用支持方向传感器的浏览器。请通过 HTTPS 地址打开；内置浏览器无法连接时，请用系统浏览器打开。</p><p>连接后保持舒适握姿，模型正面朝向你。需要更换参照方向时点击“设为正面”；横竖屏切换会重新校准。模型按物理方向跟随，不作镜像反转。演示模式不使用真实传感器数据。</p><p>静止时更新频率降低是正常的省电行为。“距最近采样”是数据新鲜度，不是端到端延迟。实际响应取决于浏览器及设备；方向读数可能漂移，可重新校准。</p></div></details>
-  <footer><span>掌中姿态 / MOTION LAB</span><span>你的动作，只留在你的手机。</span></footer>
+  <details><summary>使用提示与兼容性 <span>＋</span></summary><div class="tips"><p>iPhone / iPad：建议使用 Safari，点击连接并允许“运动与方向”。Android：使用支持方向传感器的浏览器。请通过 HTTPS 地址打开；内置浏览器无法连接时，请用系统浏览器打开。</p><p>连接后保持舒适握姿，光剑以剑尖朝上为初始方向。需要更换参照方向时点击“校准方向”；横竖屏切换会重新校准。模型按物理方向跟随，不作镜像反转。演示模式不使用真实传感器数据。</p><p>静止时更新频率降低是正常的省电行为。“距最近采样”是数据新鲜度，不是端到端延迟。实际响应取决于浏览器及设备；方向读数可能漂移，可重新校准。</p></div></details>
+  <footer><span>掌中光剑 / MOTION LAB</span><span>你的动作，只留在你的手机。</span></footer>
 </main>
 <noscript>请启用 JavaScript 以读取手机传感器并显示三维姿态。</noscript>
 <script type="module">/* SCRIPT */</script>
