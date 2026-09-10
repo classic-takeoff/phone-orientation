@@ -1,8 +1,11 @@
 import { identity, multiply, inverse, fromSensor, distance, cssMatrix, angles, PoseFilter } from './orientation.mjs';
+import { angularVelocity, omegaFromRate, SwingDetector } from './swing.mjs';
 const $=id=>document.getElementById(id);
-const ui=Object.fromEntries(['saber','status','message','connect','pause','calibrate','demo','stage','pitch','yaw','roll','sensor-hz','render-hz','sample-age','motion-label','source-label','view-label','deadband','deadband-value'].map(id=>[id,$(id)]));
+const ui=Object.fromEntries(['saber','status','message','connect','pause','calibrate','demo','stage','pitch','yaw','roll','sensor-hz','render-hz','sample-age','motion-label','source-label','view-label','deadband','deadband-value','swing-dir','swing-speed','swing-threshold','swing-threshold-value','attack-callout','attack-dir','attack-speed'].map(id=>[id,$(id)]));
 const filter=new PoseFilter();
+const detector=new SwingDetector();
 let mode='idle', paused=false, base=null, latest=null, lastEvent=0, started=0, raf=0, frameTime=0, statsTime=0, samples=0, draws=0, lastReadout=0, demoStart=0, generation=0;
+let lastGyro=0, prevRaw=null, prevRawTime=0, attackTimer=0;
 let currentScreen=screenAngle();
 function screenAngle(){return Number(window.screen?.orientation?.angle ?? window.orientation ?? 0);}
 function status(label,state){ui.status.textContent=label;ui.status.dataset.state=state;}
@@ -21,8 +24,35 @@ function onSensor(event){
   if(!base){resetPose(latest,now);message('已连接。光剑以当前握姿为基准，转动手机即可控制方向；更换握姿时可重新校准。');}
   const relative=multiply(base,latest);
   if(returning)filter.reset(relative,now);else filter.sample(relative,now);
+  // Swing fallback: when the gyroscope is absent or stale, derive angular
+  // velocity by differentiating consecutive raw orientation samples.
+  if(now-lastGyro>250&&prevRaw&&now>prevRawTime&&now-prevRawTime<150)feedSwing(angularVelocity(prevRaw,latest,(now-prevRawTime)/1000),now);
+  prevRaw=latest;prevRawTime=now;
   if(ui.status.dataset.state!=='live')status('实时连接','live');
   schedule();
+}
+function subscribeSensors(){window.addEventListener('deviceorientation',onSensor,{passive:true});if(window.DeviceMotionEvent)window.addEventListener('devicemotion',onMotion,{passive:true});}
+function unsubscribeSensors(){window.removeEventListener('deviceorientation',onSensor);window.removeEventListener('devicemotion',onMotion);}
+function onMotion(event){
+  if(paused||document.hidden||!base)return;
+  const r=event.rotationRate;
+  if(!r||![r.alpha,r.beta,r.gamma].every(v=>typeof v==='number'&&Number.isFinite(v)))return;
+  lastGyro=performance.now();
+  feedSwing(omegaFromRate(r),lastGyro);
+}
+function feedSwing(omega,now){
+  const attack=detector.sample(omega,now);
+  if(attack)flashAttack(attack);
+}
+function flashAttack(a){
+  ui['swing-dir'].textContent=a.label;
+  ui['swing-speed'].textContent=Math.round(a.speed)+'°/s';
+  ui['attack-dir'].textContent=a.label;
+  ui['attack-speed'].textContent=Math.round(a.speed)+'°/s · '+Math.round(a.angleDeg)+'°';
+  ui['attack-callout'].classList.add('show');
+  ui.saber.classList.add('attacking');
+  clearTimeout(attackTimer);
+  attackTimer=setTimeout(()=>{ui['attack-callout'].classList.remove('show');ui.saber.classList.remove('attacking');},260);
 }
 function schedule(){if(!raf&&!paused&&!document.hidden&&(mode==='sensor'||mode==='demo'))raf=requestAnimationFrame(frame);}
 function frame(now){
@@ -38,7 +68,7 @@ function frame(now){
   if(mode==='demo'||distance(filter.value,filter.target)>.015)schedule();
 }
 function cancelFrame(){cancelAnimationFrame(raf);raf=0;frameTime=0;}
-function stop(){generation++;window.removeEventListener('deviceorientation',onSensor);cancelFrame();mode='idle';base=null;latest=null;lastEvent=0;paused=false;samples=0;draws=0;statsTime=performance.now();}
+function stop(){generation++;unsubscribeSensors();cancelFrame();mode='idle';base=null;latest=null;lastEvent=0;paused=false;samples=0;draws=0;statsTime=performance.now();lastGyro=0;prevRaw=null;prevRawTime=0;detector.reset();clearTimeout(attackTimer);ui['swing-dir'].textContent='—';ui['swing-speed'].textContent='—';ui['attack-callout'].classList.remove('show');ui.saber.classList.remove('attacking');}
 function controls(){const active=mode==='sensor'||mode==='demo';ui.pause.disabled=!active;ui.calibrate.disabled=!active;ui.pause.textContent=paused?'▶ 继续':'Ⅱ 暂停';ui.connect.textContent=mode==='sensor'?'断开传感器':'连接手机传感器 ↗';ui.demo.textContent=mode==='demo'?'退出演示 →':'没有传感器？体验演示 →';ui['source-label'].textContent=mode==='sensor'?'手机方向传感器':mode==='demo'?'演示数据 · 非真实传感器':'等待手机传感器';}
 ui.connect.addEventListener('click',async()=>{
   if(mode==='sensor'){stop();controls();status('已断开','idle');message('已停止读取传感器。点击连接可重新开始。');return;}
@@ -53,9 +83,15 @@ ui.connect.addEventListener('click',async()=>{
       if(attempt!==generation)return;
       if(permission!=='granted')throw new Error('permission-denied');
     }
+    // Gyroscope permission is optional on iOS: swings are still detected by
+    // differentiating orientation when the motion rate is unavailable.
+    if(window.DeviceMotionEvent&&typeof window.DeviceMotionEvent.requestPermission==='function'){
+      try{await window.DeviceMotionEvent.requestPermission();}catch{}
+      if(attempt!==generation)return;
+    }
     if(attempt!==generation)return;
     mode='sensor';started=performance.now();statsTime=started;screenLayout();
-    window.addEventListener('deviceorientation',onSensor,{passive:true});controls();
+    detector.reset();subscribeSensors();controls();
     status('等待传感器','idle');message('权限已就绪，等待有效方向数据。请轻轻转动手机。');
   }catch(error){if(attempt!==generation)return;status('无法连接','error');message(error.message==='permission-denied'?'运动与方向权限未获允许。请在浏览器网站设置中允许，或重新打开页面后连接。':'浏览器未能提供运动权限。请在 Safari / Chrome 中通过 HTTPS 打开，并检查网站传感器权限。');}
   finally{ui.connect.disabled=false;}
@@ -67,18 +103,19 @@ ui.calibrate.addEventListener('click',()=>{
 });
 ui.pause.addEventListener('click',()=>{
   paused=!paused;
-  if(paused){cancelFrame();window.removeEventListener('deviceorientation',onSensor);status('已暂停','idle');message('已暂停读取和更新。点击继续恢复。');}
-  else{if(mode==='sensor'){lastEvent=0;started=performance.now();window.addEventListener('deviceorientation',onSensor,{passive:true});status('等待传感器','idle');}else{status('演示模式','demo');schedule();}message('已继续跟随，保留原来的方向参照。');}
+  if(paused){cancelFrame();unsubscribeSensors();status('已暂停','idle');message('已暂停读取和更新。点击继续恢复。');}
+  else{if(mode==='sensor'){lastEvent=0;started=performance.now();detector.reset();subscribeSensors();status('等待传感器','idle');}else{status('演示模式','demo');schedule();}message('已继续跟随，保留原来的方向参照。');}
   controls();
 });
 ui.deadband.addEventListener('input',()=>{filter.deadband=Number(ui.deadband.value);ui['deadband-value'].textContent=filter.deadband.toFixed(2)+'°';});
-function onScreenChange(){screenLayout();if(mode==='sensor'){base=null;latest=null;lastEvent=0;started=performance.now();message('屏幕方向已改变，下一次有效采样会重新校准方向。');}schedule();}
+ui['swing-threshold'].addEventListener('input',()=>{detector.threshold=Number(ui['swing-threshold'].value);ui['swing-threshold-value'].textContent=detector.threshold+'°/s';});
+function onScreenChange(){screenLayout();if(mode==='sensor'){base=null;latest=null;lastEvent=0;started=performance.now();lastGyro=0;prevRaw=null;prevRawTime=0;detector.reset();message('屏幕方向已改变，下一次有效采样会重新校准方向。');}schedule();}
 if(window.screen?.orientation?.addEventListener)window.screen.orientation.addEventListener('change',onScreenChange);else window.addEventListener('orientationchange',onScreenChange);
 document.addEventListener('visibilitychange',()=>{
   cancelFrame();
-  if(document.hidden){window.removeEventListener('deviceorientation',onSensor);return;}
+  if(document.hidden){unsubscribeSensors();return;}
   statsTime=performance.now();samples=0;draws=0;
-  if(mode==='sensor'&&!paused){started=performance.now();lastEvent=0;window.addEventListener('deviceorientation',onSensor,{passive:true});status('等待传感器','idle');}
+  if(mode==='sensor'&&!paused){started=performance.now();lastEvent=0;detector.reset();subscribeSensors();status('等待传感器','idle');}
   schedule();
 });
 // Low-rate instrumentation stays separate from the model's animation loop.

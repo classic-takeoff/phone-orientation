@@ -14,3 +14,11 @@
 .hilt-button{position:absolute;width:9px;height:15px;left:12px;top:18px;border:2px solid #294035;border-radius:4px;background:#baf77d;transform:translateZ(17px);box-shadow:0 0 6px #a2fb6e80}
 .emitter,.pommel{position:absolute;left:0;width:32px;height:32px;border-radius:50%;background:radial-gradient(#e6fff0 0 30%,#66796c 32% 60%,#d5e6da 63%);transform:rotateX(90deg);top:-16px}.pommel{top:66px;background:#66796c}
 @media(max-width:760px){.saber-anchor{transform:translate(-50%,-50%) scale(.78)}}
+
+/* Swing attack feedback: direction callout over the stage + blade flash. */
+.attack-callout{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);pointer-events:none;opacity:0;z-index:3;text-align:center;transition:opacity .16s ease}
+.attack-callout.show{opacity:1}
+.attack-callout .attack-dir{display:block;font:700 46px/1.1 system-ui;color:#fff;text-shadow:0 0 10px var(--accent),0 0 26px #58ff8c}
+.attack-callout .attack-speed{display:block;margin-top:9px;font:600 15px ui-monospace,monospace;color:var(--accent);letter-spacing:1px}
+.saber.attacking .blade-face{box-shadow:0 0 14px #d8ffe6,0 0 34px #7cffad,0 0 70px #4cff8066}
+@media(max-width:760px){.attack-callout .attack-dir{font-size:34px}}

@@ -17,6 +17,7 @@
         <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="crosshair"></div>
         <span class="direction top-direction">上 / TOP</span><span class="direction left-direction">L</span><span class="direction right-direction">R</span>
         <div class="saber-anchor"><div class="saber" id="saber" aria-hidden="true"><div class="blade"><i class="blade-face" style="--angle:0deg"></i><i class="blade-face" style="--angle:45deg"></i><i class="blade-face" style="--angle:90deg"></i><i class="blade-face" style="--angle:135deg"></i><i class="blade-face" style="--angle:180deg"></i><i class="blade-face" style="--angle:225deg"></i><i class="blade-face" style="--angle:270deg"></i><i class="blade-face" style="--angle:315deg"></i></div><div class="hilt"><i class="hilt-face" style="--angle:0deg"></i><i class="hilt-face" style="--angle:45deg"></i><i class="hilt-face" style="--angle:90deg"></i><i class="hilt-face" style="--angle:135deg"></i><i class="hilt-face" style="--angle:180deg"></i><i class="hilt-face" style="--angle:225deg"></i><i class="hilt-face" style="--angle:270deg"></i><i class="hilt-face" style="--angle:315deg"></i><i class="hilt-button"></i><i class="emitter"></i><i class="pommel"></i></div></div></div>
+        <div class="attack-callout" id="attack-callout" aria-hidden="true"><span class="attack-dir" id="attack-dir">右</span><span class="attack-speed" id="attack-speed">—°/s</span></div>
       </div>
       <div class="viewer-bottom"><span><i class="legend-dot"></i> <span id="source-label">等待手机传感器</span></span><span id="motion-label">准备就绪</span></div>
     </div>
@@ -35,6 +36,13 @@
       <input id="deadband" type="range" min="0.15" max="2" step="0.05" value="0.65">
       <div class="range-hints"><span>更灵敏</span><span>更稳定</span></div>
       <p class="small-note">快速转动自动提高响应；静止时降低更新。</p>
+      <div class="separator"></div>
+      <div class="section-number">04 <span>挥动攻击</span></div>
+      <div class="readings"><div><span>挥动方向</span><output id="swing-dir">—</output></div><div><span>峰值速度</span><output id="swing-speed">—</output></div></div>
+      <label class="range-label" for="swing-threshold">触发灵敏度 <output id="swing-threshold-value">160°/s</output></label>
+      <input id="swing-threshold" type="range" min="60" max="400" step="10" value="160">
+      <div class="range-hints"><span>更易触发</span><span>更难触发</span></div>
+      <p class="small-note">快速挥动手机触发一次攻击；方向为剑尖相对手机的运动方向。</p>
       <button id="demo" class="demo">没有传感器？体验演示 <span>→</span></button>
     </aside>
   </section>

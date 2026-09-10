@@ -1,8 +1,8 @@
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 const root=new URL('../',import.meta.url);
 const read=path=>readFile(new URL(path,root),'utf8');
-const [html,css,math,app]=await Promise.all(['src/index.html','src/style.css','src/orientation.mjs','src/app.mjs'].map(read));
-const script=math.replace(/^export /gm,'')+'\n'+app.replace(/^import .*;\n/,'');
+const [html,css,math,swing,app]=await Promise.all(['src/index.html','src/style.css','src/orientation.mjs','src/swing.mjs','src/app.mjs'].map(read));
+const script=[math,swing,app].map(src=>src.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,'')).join('\n');
 const output=html.replace('/* STYLES */',()=>css).replace('/* SCRIPT */',()=>script);
 await mkdir(new URL('docs/',root),{recursive:true});
 await writeFile(new URL('docs/index.html',root),output);

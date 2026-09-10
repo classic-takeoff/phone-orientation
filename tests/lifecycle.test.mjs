@@ -3,17 +3,18 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 const math=await readFile(new URL('../src/orientation.mjs',import.meta.url),'utf8');
+const swing=await readFile(new URL('../src/swing.mjs',import.meta.url),'utf8');
 const app=await readFile(new URL('../src/app.mjs',import.meta.url),'utf8');
-const code=math.replace(/^export /gm,'')+'\n'+app.replace(/^import .*;\n/,'');
+const code=[math,swing,app].map(src=>src.replace(/^import[^\n]*\n/gm,'').replace(/^export /gm,'')).join('\n');
 function target(){const listeners=new Map();return {addEventListener(type,fn){if(!listeners.has(type))listeners.set(type,new Set());listeners.get(type).add(fn);},removeEventListener(type,fn){listeners.get(type)?.delete(fn);},async emit(type,event={}){for(const fn of [...(listeners.get(type)||[])])await fn(event);},count(type){return listeners.get(type)?.size||0;}};}
 function harness({secure=true,permission='granted',supported=true}={}){
   const elements=new Map();let time=1000,frameId=0;const frames=new Map(),intervals=[];
-  const el=id=>{if(!elements.has(id))elements.set(id,Object.assign(target(),{textContent:'',style:{},dataset:{},value:.65,disabled:false}));return elements.get(id);};
+  const el=id=>{if(!elements.has(id))elements.set(id,Object.assign(target(),{textContent:'',style:{},dataset:{},value:.65,disabled:false,classList:{add(){},remove(){},toggle(){}}}));return elements.get(id);};
   const document=Object.assign(target(),{hidden:false,getElementById:el,body:{classList:{toggle(){}}}});
   const orientation=Object.assign(target(),{angle:0});
   const DeviceOrientationEvent={requestPermission:async()=>permission};
   const window=Object.assign(target(),{isSecureContext:secure,DeviceOrientationEvent:supported?DeviceOrientationEvent:undefined,screen:{orientation}});
-  vm.runInNewContext(code,{document,window,DeviceOrientationEvent,performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++frameId,fn);return frameId;},cancelAnimationFrame:id=>frames.delete(id),setInterval:fn=>intervals.push(fn),Math,Number,Error});
+  vm.runInNewContext(code,{document,window,DeviceOrientationEvent,performance:{now:()=>time},requestAnimationFrame:fn=>{frames.set(++frameId,fn);return frameId;},cancelAnimationFrame:id=>frames.delete(id),setInterval:fn=>intervals.push(fn),setTimeout:()=>0,clearTimeout:()=>{},Math,Number,Error});
   return {el,window,document,orientation,frames,click:id=>el(id).emit('click'),sensor:data=>window.emit('deviceorientation',{alpha:0,beta:0,gamma:0,...data}),tick(ms=17){time+=ms;const jobs=[...frames.values()];frames.clear();jobs.forEach(fn=>fn(time));},stats(ms=1000){time+=ms;intervals.forEach(fn=>fn());}};
 }
 test('insecure origin is refused before subscribing',async()=>{const h=harness({secure:false});await h.click('connect');assert.equal(h.el('status').textContent,'需要 HTTPS');assert.equal(h.window.count('deviceorientation'),0);});
